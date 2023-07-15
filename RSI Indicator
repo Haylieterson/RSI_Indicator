@@ -1,0 +1,40 @@
+//@version=4
+study(title="RSI Indicator", shorttitle="RSI")
+len = input(title="Length", type=input.integer, defval=14, minval=1)
+src = input(title="Source", type=input.source, defval=close)
+oversold = input(title="Oversold", type=input.integer, defval=30, minval=1, maxval=100)
+overbought = input(title="Overbought", type=input.integer, defval=70, minval=1, maxval=100)
+ma60 = sma(src, 60)
+
+rsi = rsi(src, len)
+ob = hline(overbought, "Overbought", color.red)
+os = hline(oversold, "Oversold", color.lime)
+plot(rsi, "RSI", color.blue)
+
+// Фильтр боковых движений
+sideWays = close > ma60 + ma60*0.02 or close < ma60 - ma60*0.02
+
+// Фильтр для сигналов по тренду
+last_high = highest(high, 660) // последний хай за 6 часов
+last_low = lowest(low, 660) // последний лоу за 6 часов
+trend = abs(last_high - last_low) / last_high >= 0.03 or abs(last_high - last_low) / last_low >= 0.03
+percent_change = abs(close - nz(close[1])) / nz(close[1]) >= 0.01
+
+signal = 0.0
+signal := sideWays or not trend or not percent_change ? 0.0 : rsi
+
+// Сигнал на продажу
+signalSell = crossunder(rsi, oversold)
+signalSell := sideWays or signalSell[1] or signal == 0.0 or not trend or not percent_change ? 0.0 : signalSell
+
+// Сигнал на покупку
+signalBuy = crossover(rsi, overbought)
+signalBuy := sideWays or signalBuy[1] or signal == 0.0 or not trend or not percent_change ? 0.0 : signalBuy
+
+// Рисуем стрелки на графике
+plotshape(signalSell, title="Sell Signal", location=location.abovebar, color=color.red, style=shape.triangledown, text="Sell")
+plotshape(signalBuy, title="Buy Signal", location=location.belowbar, color=color.green, style=shape.triangleup, text="Buy")
+
+// Отображение сигналов в терминале
+alertcondition(signalSell, title="Sell Signal", message="Sell Signal")
+alertcondition(signalBuy, title="Buy Signal", message="Buy Signal")
